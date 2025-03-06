@@ -154,7 +154,6 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
       }
     }
 
-    // Otherwise random move
     return _findRandomMove();
   }
 
@@ -196,14 +195,14 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
           moveCount--;
 
           if (isMaximizing) {
-            bestScore = max(score, bestScore);
-            alpha = max(alpha, bestScore);
+            if (score > bestScore) bestScore = score;
+            if (bestScore >= beta) break;
+            if (bestScore > alpha) alpha = bestScore;
           } else {
-            bestScore = min(score, bestScore);
-            beta = min(beta, bestScore);
+            if (score < bestScore) bestScore = score;
+            if (bestScore <= alpha) break;
+            if (bestScore < beta) beta = bestScore;
           }
-
-          if (beta <= alpha) break;
         }
       }
     }
@@ -241,8 +240,8 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final maxGameSize = screenWidth > 600 ? 500.0 : screenWidth * 0.9;
+    final screenSize = MediaQuery.of(context).size;
+    final maxGameSize = min(screenSize.width, screenSize.height * 0.6).clamp(200.0, 500.0);
 
     return Scaffold(
       appBar: AppBar(
@@ -255,29 +254,35 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-                horizontal: screenWidth > 600 ? 50 : 16,
-                vertical: 20
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildScoreboard(),
-                const SizedBox(height: 20),
-                Container(
-                  constraints: BoxConstraints(maxWidth: maxGameSize),
-                  child: AspectRatio(
-                    aspectRatio: 1,
-                    child: _buildGameGrid(),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight,
+                ),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                      horizontal: screenSize.width > 600 ? 50 : 16,
+                      vertical: 20
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildScoreboard(),
+                      const SizedBox(height: 20),
+                      Container(
+                        constraints: BoxConstraints(maxWidth: maxGameSize, maxHeight: maxGameSize),
+                        child: _buildGameGrid(),
+                      ),
+                      SizedBox(height: screenSize.height > 800 ? 20 : 10),
+                      _buildGameControls(),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 20),
-                _buildGameControls(),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
@@ -334,32 +339,35 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
   }
 
   Widget _buildGameGrid() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blueGrey.withOpacity(0.1),
-            blurRadius: 20,
-            spreadRadius: 5,
+    return AspectRatio(
+      aspectRatio: 1,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.blueGrey.withOpacity(0.1),
+              blurRadius: 20,
+              spreadRadius: 5,
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: GridView.builder(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+            ),
+            itemCount: 9,
+            itemBuilder: (context, index) {
+              int row = index ~/ 3;
+              int col = index % 3;
+              return _buildGridCell(row, col);
+            },
           ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: GridView.builder(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-          ),
-          itemCount: 9,
-          itemBuilder: (context, index) {
-            int row = index ~/ 3;
-            int col = index % 3;
-            return _buildGridCell(row, col);
-          },
         ),
       ),
     );
@@ -406,40 +414,43 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
   }
 
   Widget _buildGameControls() {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16.0),
-          child: Text(
-            gameResult.isNotEmpty
-                ? gameResult
-                : isComputerThinking
-                ? 'Computer Thinking...'
-                : 'Current Player: $currentPlayer',
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.blueGrey,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ),
-        if (gameResult.isNotEmpty)
-          ElevatedButton.icon(
-            icon: const Icon(Icons.replay, size: 24),
-            label: const Text('Play Again', style: TextStyle(fontSize: 18)),
-            onPressed: _initializeGame,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue[800],
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
+            child: Text(
+              gameResult.isNotEmpty
+                  ? gameResult
+                  : isComputerThinking
+                  ? 'Computer Thinking...'
+                  : 'Current Player: $currentPlayer',
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.blueGrey,
               ),
-              elevation: 4,
+              textAlign: TextAlign.center,
             ),
           ),
-      ],
+          if (gameResult.isNotEmpty)
+            ElevatedButton.icon(
+              icon: const Icon(Icons.replay, size: 24),
+              label: const Text('Play Again', style: TextStyle(fontSize: 18)),
+              onPressed: _initializeGame,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue[800],
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 4,
+              ),
+            ),
+        ],
+      ),
     );
   }
 
