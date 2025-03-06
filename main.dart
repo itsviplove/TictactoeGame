@@ -160,13 +160,17 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
   List<int> _findBestMove() {
     int bestScore = -1000;
     List<int> bestMove = [-1, -1];
+    int originalMoveCount = moveCount;
 
     for (int i = 0; i < 3; i++) {
       for (int j = 0; j < 3; j++) {
         if (board[i][j].isEmpty) {
           board[i][j] = 'O';
-          int score = _minimax(false, -1000, 1000);
+          moveCount++;
+          int score = _minimax(false, -1000, 1000, 0);
           board[i][j] = '';
+          moveCount = originalMoveCount;
+
           if (score > bestScore) {
             bestScore = score;
             bestMove = [i, j];
@@ -177,9 +181,9 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
     return bestMove;
   }
 
-  int _minimax(bool isMaximizing, int alpha, int beta) {
-    if (_checkWin('O')) return 1;
-    if (_checkWin('X')) return -1;
+  int _minimax(bool isMaximizing, int alpha, int beta, int depth) {
+    if (_checkWin('O')) return 10 - depth;
+    if (_checkWin('X')) return depth - 10;
     if (moveCount == 9) return 0;
 
     int bestScore = isMaximizing ? -1000 : 1000;
@@ -190,19 +194,19 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
         if (board[i][j].isEmpty) {
           board[i][j] = player;
           moveCount++;
-          int score = _minimax(!isMaximizing, alpha, beta);
+          int score = _minimax(!isMaximizing, alpha, beta, depth + 1);
           board[i][j] = '';
           moveCount--;
 
           if (isMaximizing) {
-            if (score > bestScore) bestScore = score;
-            if (bestScore >= beta) break;
-            if (bestScore > alpha) alpha = bestScore;
+            bestScore = max(score, bestScore);
+            alpha = max(alpha, bestScore);
           } else {
-            if (score < bestScore) bestScore = score;
-            if (bestScore <= alpha) break;
-            if (bestScore < beta) beta = bestScore;
+            bestScore = min(score, bestScore);
+            beta = min(beta, bestScore);
           }
+
+          if (beta <= alpha) break;
         }
       }
     }
@@ -241,7 +245,7 @@ class _TicTacToeScreenState extends State<TicTacToeScreen> {
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
-    final maxGameSize = min(screenSize.width, screenSize.height * 0.6).clamp(200.0, 500.0);
+    final maxGameSize = min(screenSize.width, screenSize.height * 0.6).clamp(200.0, 400.0);
 
     return Scaffold(
       appBar: AppBar(
